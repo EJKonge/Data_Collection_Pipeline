@@ -1,3 +1,5 @@
+from os import link
+from turtle import title
 import selenium
 from selenium import webdriver 
 import requests 
@@ -20,14 +22,17 @@ class Anime_Scraper:
 
         block = self.driver.find_element(By.CLASS_NAME, 'lister-item')
         for i in range(0,50):
-            ftitle = block[i].find_element(By.CLASS_NAME, 'lister-item-header').text
-            forder = block[i].find_element(By.CLASS_NAME, 'lister-item-index').text
-            fyear = ftitle[-6:]
-            ftitle = ftitle.replace(forder+' ', '')[:-7 ]
-            flink = block[i].find_element_by_link_text(ftitle).get_attribute('href')
-            title.append(ftitle)
-            year.append(fyear)
-            link.append(flink)
+            try:
+                ftitle = block[i].find_element(By.CLASS_NAME, 'lister-item-header').text
+                forder = block[i].find_element(By.CLASS_NAME, 'lister-item-index').text
+                fyear = ftitle[-6:]
+                ftitle = ftitle.replace(forder+' ', '')[:-7 ]
+                flink = block[i].find_element(By.LINK_TEXT, ftitle).get_attribute('href')
+                title.append(ftitle)
+                year.append(fyear)
+                link.append(flink)
+            except:
+                continue
 
     def run_scraper(self):
             self.get_titles()
