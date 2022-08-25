@@ -15,25 +15,50 @@ class Anime_Scraper:
 
     def get_titles(self):
         time.sleep(2)
-        block = self.driver.find_element(By.CLASS_NAME, 'lister-item')
-        ftitle = block.find_element(By.CLASS_NAME, 'lister-item-header').text
-        forder = block.find_element(By.CLASS_NAME, 'lister-item-index').text
-        fyear = ftitle[-6:]
-        ftitle = ftitle.replace(forder+' ', '')[:-7 ]
-        flink = block.find_element(By.LINK_TEXT, ftitle).get_attribute('href')
-        print(ftitle)
-        print(fyear)
-        print(flink)
+        i=50
+        page = 1
+        block = self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]')
+        title = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/a').text
+        year = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/span[2]').text
+        link = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/a').get_attribute('href')
+        genre = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/p[1]/span[5]').text
+        rating = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/div/div[1]/strong').text
+        certificate = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/p[1]/span[1]').text
+        runtime = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/p[1]/span[3]').text
+        print(title)
+        print(year)
+        print(link + "\n" + genre + "\n" + rating + "\n" + certificate + "\n" + runtime)
+        time.sleep(2)
+        if page == 1:
+            self.first_page()
+            page +=1
+        else: 
+            self.next_page
+            page +=1
 
     def run_scraper(self):
             self.get_titles()
+    
+    def first_page(self):
+        self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a')
+        self.nextpage.click()
 
-            
+    def next_page(self):
+        self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a[2]')
+        self.nextpage.click()
 
+              
     def quit_scraper(self):
         self.driver.quit()
                 
 if __name__ == '__main__':
     Anime = Anime_Scraper()
-    Anime.run_scraper()
+    time.sleep(5)
+    Anime.first_page()
+    time.sleep(5)
+    Anime.next_page()
+    time.sleep(5)
+    Anime.next_page()
+    time.sleep(5)
     Anime.quit_scraper()
+    
