@@ -1,19 +1,31 @@
-import imp
-import selenium
-from selenium import webdriver 
-import requests 
 from bs4 import BeautifulSoup
-import pandas as pd
-import numpy as np
+from selenium import webdriver 
 from selenium.webdriver.common.by import By
-import time
-import uuid
-import urllib.request
+import imp
+import numpy as np
 import os
+import pandas as pd
+import requests 
+import selenium
+import time
+import urllib.request
+import uuid
+
 
 class Anime_Scraper:
-
+    """
+    Creating a class containing a webscraper to gather Anime data from IMDB.com
+    """
     def __init__(self,  url : str = "https://www.imdb.com/search/keyword/?keywords=anime&ref_=kw_nxt&mode=detail&page=1&sort=moviemeter,asc"):
+
+        """
+        __init__ to initialise all the attributes needed.
+
+        Args:
+            driver: sets up the driver to control chrome for selenium.
+            title,year,link,genre,rating,id,uuid: creates empty lists to be used later.
+            page: sets starting page number(needed for loading new pages in next_page function below)
+        """
 
         self.driver = webdriver.Chrome()
         self.driver.get(url)
@@ -26,58 +38,86 @@ class Anime_Scraper:
         self.uuid= []
         self.page = 1
 
-    def get_titles(self):
-        for i in range(1,5):
+    def get_titles(self, i=1):
+
+        """
+        This function gathers all wanted data by using try/except clauses for each arg.
+
+        Args:
+            uuid: global unique ID 
+            title: title of the anime
+            year: release date of the anime
+            link: link to animes page
+            genre: genre of the anime
+            rating: rating of the anime
+            id: ID derived from the link of the anime page
+
+        Returns:
+            Try clause appends the wanted data, if available, to the empty lists in the __init__ method. Otherwise the except clause appends a value of NAN from numpy.
+
+        """    
+
+        while i < 51:
             self.uuid.append(str(uuid.uuid4()))
             block = self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]')
+
             try:
-                
-                try:
-                    title_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/a').text
-                    self.title.append(title_temp)
-                except:
-                    title_temp = np.NAN
-                    self.title.append(title_temp)
-
-                try:
-                    year_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/span[2]').text
-                    self.year.append(year_temp)
-                except:
-                    year_temp = np.NAN
-                    self.year.append(year_temp)
-
-                try:    
-                    link_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/a').get_attribute('href')
-                    self.link.append(link_temp)
-                except:
-                    link_temp = np.NAN
-                    self.link.append(link_temp)
-
-                try:
-                    genre_temp = block.find_element(By.CLASS_NAME, 'genre').text
-                    self.genre.append(genre_temp)
-                except:
-                    genre_temp = np.NAN
-                    self.genre.append(genre_temp)
-
-                try:
-                    rating_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/div/div[1]/strong').text
-                    self.rating.append(rating_temp)
-                except:
-                    rating_temp = np.NAN
-                    self.rating.append(rating_temp)
-                
-                try:
-                    id_temp = link_temp[29:36]
-                    self.id.append(id_temp)
-                except:
-                    id_temp = np.NAN
-                    self.id.append(id_temp)
-                    
+                title_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/a').text
+                self.title.append(title_temp)
             except:
-                continue
+                title_temp = np.NAN
+                self.title.append(title_temp)
+
+            try:
+                year_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/span[2]').text
+                self.year.append(year_temp)
+            except:
+                year_temp = np.NAN
+                self.year.append(year_temp)
+
+            try:    
+                link_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/a').get_attribute('href')
+                self.link.append(link_temp)
+            except:
+                link_temp = np.NAN
+                self.link.append(link_temp)
+
+            try:
+                genre_temp = block.find_element(By.CLASS_NAME, 'genre').text
+                self.genre.append(genre_temp)
+            except:
+                genre_temp = np.NAN
+                self.genre.append(genre_temp)
+
+            try:
+                rating_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/div/div[1]/strong').text
+                self.rating.append(rating_temp)
+            except:
+                rating_temp = np.NAN
+                self.rating.append(rating_temp)
+            
+            try:
+                id_temp = link_temp[29:36]
+                self.id.append(id_temp)
+            except:
+                id_temp = np.NAN
+                self.id.append(id_temp)
+            i+=1            
+            
 
     def get_img(self):
+
+        """
+        This function gathers image data of all animes in the previous function. The funtion stores this data in lists and downloads the images on the local machine using urllib.
+
+        Args:
+            temp_name: Uses selenium to gather name of the wanted image.
+            temp_link: Uses selenium to gather the image link.
+
+        Returns:
+            This is a description of what is returned.
+        """
+
         img_name= []
         img_link= []
         local_name=[]
@@ -97,7 +137,6 @@ class Anime_Scraper:
             img_link.append(temp_link)
             local_name.append(str(num) +'_' +ids)
             num+=1
-        ''' Saving images locally
         opener=urllib.request.build_opener()
         opener.addheaders=[('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36')]
         urllib.request.install_opener(opener)
@@ -106,10 +145,22 @@ class Anime_Scraper:
             filename = f"raw_data\images\{local_name[x]}.jpg"
             image_url = links
             urllib.request.urlretrieve(image_url, filename)
-            x+=1 '''
+            x+=1 
 
     
     def create_df(self):
+
+        """
+        This function creates a dataframe, using pandas, and stores the data gathered in the get_titles function as a .json and .csv file.
+
+        Args:
+            anime_df:creates the dataframe
+            anime_df.index: changes the index to start from 1 instead of 0
+
+        Returns:
+            all gather data is stored in a file on your local machine
+        """
+
         anime_df = pd.DataFrame({'Title':self.title, 'Year':self.year, 'Link':self.link, 'Genres':self.genre, 'Rating':self.rating, 'ID':self.id, 'UUID':self.uuid})
         anime_df.index +=1
         print(anime_df)
@@ -121,6 +172,17 @@ class Anime_Scraper:
 
     def next_page(self):
         
+        """
+        This function uses selenium to go to the next page on the browser so get_titles can continue to collect more data.
+
+        Args:
+            nextpage: uses selenium to locate the 'next' button via XPATH.
+            nextpage.click: clicks the previously located button with selenium.
+
+        Returns:
+            Next page is displayed on the browser
+        """
+
         if self.page == 1:
             self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a')
             self.nextpage.click()
@@ -137,6 +199,7 @@ class Anime_Scraper:
 if __name__ == '__main__':
     Anime = Anime_Scraper()
     Anime.run_scraper()
-    time.sleep(5)
-    Anime.get_img()
+    Anime.next_page()
+    Anime.run_scraper()
+    Anime.create_df()
     Anime.quit_scraper()
