@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver 
 from selenium.webdriver.common.by import By
+import boto3
 import imp
 import numpy as np
 import os
@@ -164,8 +165,19 @@ class Anime_Scraper:
         anime_df = pd.DataFrame({'Title':self.title, 'Year':self.year, 'Link':self.link, 'Genres':self.genre, 'Rating':self.rating, 'ID':self.id, 'UUID':self.uuid})
         anime_df.index +=1
         print(anime_df)
-        #anime_df.to_json(r'raw_data\data.json')
+        anime_df.to_json(r'raw_data\data.json')
         #anime_df.to_csv('raw_data\data.csv')
+
+    def data_to_aws(self):
+        s3= boto3.client('s3')
+        s3.upload_file('raw_data/data.json', 'anime-cloud', 'Raw-Data')
+
+    def img_to_aws(self):
+        path ='C:/AiCore/Data_Collection_Pipeline/raw_data/images'
+        os.chdir(path)
+        for names in os.listdir():
+            s3= boto3.client('s3')
+            s3.upload_file(names, 'anime-cloud', 'Images/' + str(names) )
 
     def run_scraper(self):
             self.get_titles()
@@ -199,7 +211,8 @@ class Anime_Scraper:
 if __name__ == '__main__':
     Anime = Anime_Scraper()
     Anime.run_scraper()
-    Anime.next_page()
-    Anime.run_scraper()
-    Anime.create_df()
+    Anime.get_img()
     Anime.quit_scraper()
+    Anime.create_df()
+    Anime.data_to_aws()
+    Anime.img_to_aws()
