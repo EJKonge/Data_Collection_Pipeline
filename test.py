@@ -60,7 +60,7 @@ class Anime_Scraper:
 
         """    
 
-        while i < 5:
+        while i < 51:
             self.uuid.append(str(uuid.uuid4()))
             block = self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]')
             
@@ -96,12 +96,12 @@ class Anime_Scraper:
             try:
                 temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('alt').replace(':', "").replace('?','')
             except:
-                temp_name= np.NAN
+                temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/div[2]/a/img').get_attribute('alt').replace(':', "").replace('?','')
             
             try:
                 temp_link= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('src')
             except:
-                temp_link= np.NAN
+                temp_link= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/div[2]/a/img').get_attribute('src')
 
             self.title.append(title_temp)
             self.year.append(year_temp)
@@ -118,36 +118,6 @@ class Anime_Scraper:
             locate = self.driver.find_element(By.XPATH, '//*[@id="styleguide-v2"]')
             locate.send_keys(Keys.PAGE_DOWN)
             time.sleep(1)
-            
-
-    def get_img(self):
-
-        """
-        This function gathers image data of all animes in the previous function. The funtion stores this data in lists and downloads the images on the local machine using urllib.
-
-        Args:
-            temp_name: Uses selenium to gather name of the wanted image.
-            temp_link: Uses selenium to gather the image link.
-
-        Returns:
-            This is a description of what is returned.
-        """
-        
-        num=1
-        while num < 51:
-            try:
-                temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{num}]/div[1]/a/img').get_attribute('alt').replace(':', "").replace('?','')
-            except:
-                temp_name= np.NAN
-            
-            try:
-                temp_link= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{num}]/div[1]/a/img').get_attribute('src')
-            except:
-                temp_link= np.NAN
-
-            self.img_name.append(temp_name)
-            self.img_link.append(temp_link)
-            num+=1
 
     def local_img_save(self):
         opener=urllib.request.build_opener()
@@ -217,9 +187,8 @@ class Anime_Scraper:
     def run_scraper(self):
         amount = input('How many pages do you wanna scrape:')
         for i in range(int(amount)):
-            #self.scrolling()
+            self.scrolling()
             self.get_titles()    
-            #self.get_img()
             self.next_page()
     
     def quit_scraper(self):
@@ -229,7 +198,7 @@ if __name__ == '__main__':
     Anime = Anime_Scraper()
     Anime.run_scraper()
     Anime.quit_scraper()
-    #Anime.local_img_save()
+    Anime.local_img_save()
     Anime.create_df()
-    #Anime.data_to_aws()
-    #Anime.img_to_aws()
+    Anime.data_to_aws()
+    Anime.img_to_aws()
