@@ -6,3 +6,5 @@ os.chdir(path)
 for names in os.listdir():
     s3= boto3.client('s3')
     s3.upload_file(names, 'anime-cloud', 'Images/' + str(names) )
+
+
