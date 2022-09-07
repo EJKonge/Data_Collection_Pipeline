@@ -41,7 +41,7 @@ class Anime_Scraper:
         self.img_link= []
         self.page = 1
 
-    def get_titles(self, i=1):
+    def get_data(self, i=1):
 
         """
         This function gathers all wanted data by using try/except clauses for each arg.
@@ -59,15 +59,20 @@ class Anime_Scraper:
             Try clause appends the wanted data, if available, to the empty lists in the __init__ method. Otherwise the except clause appends a value of NAN from numpy.
 
         """    
-
+        print(f'Gathering data on page:{self.page}')
         while i < 51:
             self.uuid.append(str(uuid.uuid4()))
-            block = self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]')
-            
+
+            try:
+                block = self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]')
+            except:
+                pass
+
             try:
                 title_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/a').text
             except:
                 title_temp = np.NAN
+
             try:
                 year_temp = block.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[2]/h3/span[2]').text
             except:
@@ -94,14 +99,20 @@ class Anime_Scraper:
                 id_temp = np.NAN
 
             try:
-                temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('alt').replace(':', "").replace('?','')
-            except:
                 temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/div[2]/a/img').get_attribute('alt').replace(':', "").replace('?','')
+            except:
+                try:
+                    temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('alt').replace(':', "").replace('?','')
+                except:
+                    temp_name=np.NAN
             
             try:
-                temp_link= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('src')
-            except:
                 temp_link= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/div[2]/a/img').get_attribute('src')
+            except:
+                try:
+                    temp_link= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('src')
+                except:
+                    temp_link=np.NAN
 
             self.title.append(title_temp)
             self.year.append(year_temp)
@@ -114,20 +125,25 @@ class Anime_Scraper:
             i+=1            
 
     def scrolling(self):
+        print('Scrolling to load images')
         for i in range(16):
             locate = self.driver.find_element(By.XPATH, '//*[@id="styleguide-v2"]')
             locate.send_keys(Keys.PAGE_DOWN)
             time.sleep(1)
 
     def local_img_save(self):
+        print('Saving images to pc')
         opener=urllib.request.build_opener()
         opener.addheaders=[('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36')]
         urllib.request.install_opener(opener)
         x=0
         for links in self.img_link:
-            filename = f"raw_data\images\{self.img_name[x]}.jpg"
-            image_url = links
-            urllib.request.urlretrieve(image_url, filename)
+            if pd.isnull(links) == False:
+                filename = f"raw_data\images\{self.img_name[x]}.jpg"
+                image_url = links
+                urllib.request.urlretrieve(image_url, filename)
+            else:
+                print(f'No image found for {self.img_name[x]}')
             x+=1 
     
     def create_df(self):
@@ -142,18 +158,20 @@ class Anime_Scraper:
         Returns:
             all gathered data is stored in a file on your local machine
         """
-
+        print('Creating the dataframe to store all data')
         anime_df = pd.DataFrame({'Title':self.title, 'Year':self.year, 'Link':self.link, 'Genres':self.genre, 'Rating':self.rating, 'ID':self.id, 'UUID':self.uuid, 'Image Links':self.img_link, 'Image Names':self.img_name})
         anime_df.index +=1
-        print(anime_df)
+        #print(anime_df)
         anime_df.to_json(r'raw_data\data.json')
         #anime_df.to_csv('raw_data\data.csv')
 
     def data_to_aws(self):
+        print('Uploading dataframe to AWS')
         s3= boto3.client('s3')
         s3.upload_file('raw_data/data.json', 'anime-cloud', 'Raw-Data')
 
     def img_to_aws(self):
+        print('Uploading images to AWS')
         path ='C:/AiCore/Data_Collection_Pipeline/raw_data/images'
         os.chdir(path)
         for names in os.listdir():
@@ -172,7 +190,7 @@ class Anime_Scraper:
         Returns:
             Next page is displayed on the browser
         """
-
+        print(f'Going to page:{self.page}')
         if self.page == 1:
             self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a')
             self.nextpage.click()
@@ -184,11 +202,19 @@ class Anime_Scraper:
             self.page +=1
         time.sleep(5)
 
+    def save_location(self):
+        location = input('Save Images locally (pc) or local+cloud (both)? Please type “pc” or “both” to make your choice:').lower()
+        if location == 'pc':
+            self.local_img_save()
+        else:
+            self.local_img_save()
+            self.img_to_aws()
+
     def run_scraper(self):
         amount = input('How many pages do you wanna scrape:')
         for i in range(int(amount)):
             self.scrolling()
-            self.get_titles()    
+            self.get_data()    
             self.next_page()
     
     def quit_scraper(self):
@@ -198,7 +224,6 @@ if __name__ == '__main__':
     Anime = Anime_Scraper()
     Anime.run_scraper()
     Anime.quit_scraper()
-    Anime.local_img_save()
     Anime.create_df()
     Anime.data_to_aws()
-    Anime.img_to_aws()
+    Anime.save_location()
