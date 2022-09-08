@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
 import boto3
 import numpy as np
 import os
@@ -27,8 +28,11 @@ class Anime_Scraper:
             title,year,link,genre,rating,id,uuid: creates empty lists to be used later.
             page: sets starting page number(needed for loading new pages in next_page function below)
         """
-
-        self.driver = webdriver.Chrome()
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("window-size=1920,1080")
+        options.add_argument('--disable-gpu')
+        self.driver = webdriver.Chrome(chrome_options=options)
         self.driver.get(url)
         self.title= []
         self.year= []
@@ -59,7 +63,7 @@ class Anime_Scraper:
             Try clause appends the wanted data, if available, to the empty lists in the __init__ method. Otherwise the except clause appends a value of NAN from numpy.
 
         """    
-        print(f'Gathering data on page:{self.page}')
+        print(f'Gathering data on page: {self.page}')
         while i < 51:
             self.uuid.append(str(uuid.uuid4()))
 
@@ -99,10 +103,10 @@ class Anime_Scraper:
                 id_temp = np.NAN
 
             try:
-                temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/div[2]/a/img').get_attribute('alt').replace(':', "").replace('?','')
+                temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/div[2]/a/img').get_attribute('alt').replace(':', "").replace('?','').replace('/',' ')
             except:
                 try:
-                    temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('alt').replace(':', "").replace('?','')
+                    temp_name= self.driver.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{i}]/div[1]/a/img').get_attribute('alt').replace(':', "").replace('?','').replace('/',' ')
                 except:
                     temp_name=np.NAN
             
@@ -172,9 +176,8 @@ class Anime_Scraper:
 
     def img_to_aws(self):
         print('Uploading images to AWS')
-        path ='C:/AiCore/Data_Collection_Pipeline/raw_data/images'
-        os.chdir(path)
-        for names in os.listdir():
+        path ='raw_data\images'
+        for names in os.listdir(path):
             s3= boto3.client('s3')
             s3.upload_file(names, 'anime-cloud', 'Images/' + str(names) )
 
@@ -190,7 +193,7 @@ class Anime_Scraper:
         Returns:
             Next page is displayed on the browser
         """
-        print(f'Going to page:{self.page}')
+        print(f'Going to page: {int(self.page)+1}')
         if self.page == 1:
             self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a')
             self.nextpage.click()
@@ -203,15 +206,17 @@ class Anime_Scraper:
         time.sleep(5)
 
     def save_location(self):
-        location = input('Save Images locally (pc) or local+cloud (both)? Please type “pc” or “both” to make your choice:').lower()
+        location = input('Save Images locally (pc) or local+cloud (both)? Please type “pc” or “both” to make your choice: ').lower()
         if location == 'pc':
+            print('You chose PC')
             self.local_img_save()
         else:
+            print('You chose both')
             self.local_img_save()
             self.img_to_aws()
 
     def run_scraper(self):
-        amount = input('How many pages do you wanna scrape:')
+        amount = input('How many pages do you wanna scrape: ')
         for i in range(int(amount)):
             self.scrolling()
             self.get_data()    
