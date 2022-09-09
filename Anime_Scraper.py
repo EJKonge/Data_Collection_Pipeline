@@ -170,20 +170,22 @@ class Anime_Scraper:
         #print(anime_df)
         anime_df.to_json(r'raw_data/data.json')
         #anime_df.to_csv('raw_data\data.csv')
-
+    
     def data_to_aws(self):
         print('Uploading dataframe to AWS')
         ACCESS_KEY = input('Please type your AWS access key: ')
-        SECRET_KEY = input('Please type your AWS secret key: ')
+        SECRET_KEY= input('Please type your AWS secret key: ')
         s3= boto3.client('s3', aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
         s3.upload_file('raw_data/data.json', 'anime-cloud', 'Raw-Data')
 
     def img_to_aws(self):
         print('Uploading images to AWS')
+        ACCESS_KEY = input('Please type your AWS access key again: ')
+        SECRET_KEY= input('Please type your AWS secret key again: ')
         path ='raw_data/images'
         os.chdir(path)
         for names in os.listdir():
-            s3= boto3.client('s3')
+            s3= boto3.client('s3', aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
             s3.upload_file(names, 'anime-cloud', 'Images/' + str(names) )
 
     def next_page(self):
