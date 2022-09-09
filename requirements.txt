@@ -2,7 +2,7 @@ selenium
 boto3
 numpy
 pandas
-urllib.request
+urllib
 uuid
 bs4
 requests
