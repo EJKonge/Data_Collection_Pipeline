@@ -181,7 +181,8 @@ class Anime_Scraper:
     def img_to_aws(self):
         print('Uploading images to AWS')
         path ='raw_data/images'
-        for names in os.listdir(path):
+        os.chdir(path)
+        for names in os.listdir():
             s3= boto3.client('s3')
             s3.upload_file(names, 'anime-cloud', 'Images/' + str(names) )
 
