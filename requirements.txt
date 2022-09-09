@@ -1,7 +1,6 @@
 selenium
 boto3
 numpy
-os
 pandas
 time
 urllib.request
