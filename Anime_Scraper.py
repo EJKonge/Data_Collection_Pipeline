@@ -168,7 +168,7 @@ class Anime_Scraper:
         anime_df = pd.DataFrame({'Title':self.title, 'Year':self.year, 'Link':self.link, 'Genres':self.genre, 'Rating':self.rating, 'ID':self.id, 'UUID':self.uuid, 'Image Links':self.img_link, 'Image Names':self.img_name})
         anime_df.index +=1
         #print(anime_df)
-        anime_df.to_json(r'raw_data\data.json')
+        anime_df.to_json(r'raw_data/data.json')
         #anime_df.to_csv('raw_data\data.csv')
 
     def data_to_aws(self):
@@ -180,7 +180,7 @@ class Anime_Scraper:
 
     def img_to_aws(self):
         print('Uploading images to AWS')
-        path ='raw_data\images'
+        path ='raw_data/images'
         for names in os.listdir(path):
             s3= boto3.client('s3')
             s3.upload_file(names, 'anime-cloud', 'Images/' + str(names) )
