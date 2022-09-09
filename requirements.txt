@@ -1,0 +1,10 @@
+selenium
+boto3
+numpy
+os
+pandas
+time
+urllib.request
+uuid
+bs4
+requests
