@@ -235,8 +235,8 @@ class Anime_Scraper:
                 
 if __name__ == '__main__':
     Anime = Anime_Scraper()
-    Anime.run_scraper()
-    Anime.quit_scraper()
-    Anime.create_df()
+    #Anime.run_scraper()
+    #Anime.quit_scraper()
+    #Anime.create_df()
     Anime.data_to_aws()
-    Anime.save_location()
+    #Anime.save_location()
