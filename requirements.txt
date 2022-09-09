@@ -2,7 +2,6 @@ selenium
 boto3
 numpy
 pandas
-time
 urllib.request
 uuid
 bs4
