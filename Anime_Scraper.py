@@ -173,9 +173,9 @@ class Anime_Scraper:
     
     def data_to_aws(self):
         print('Uploading dataframe to AWS')
-        ACCESS_KEY = input('Please type your AWS access key: ')
-        SECRET_KEY= input('Please type your AWS secret key: ')
-        s3= boto3.client('s3', aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
+        #ACCESS_KEY = input('Please type your AWS access key: ')
+        #SECRET_KEY= input('Please type your AWS secret key: ')
+        s3= boto3.client('s3'""", aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY""")
         s3.upload_file('raw_data/data.json', 'anime-cloud', 'Raw-Data')
 
     def img_to_aws(self):
