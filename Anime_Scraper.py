@@ -15,19 +15,19 @@ from sqlalchemy import create_engine
 
 
 class Anime_Scraper:
-    """
-    Creating a class containing a webscraper to gather Anime data from IMDB.com
-    """
-
+#Creating a class containing a webscraper to gather Anime data from IMDB.com
+    
     def __init__(self,  url : str = "https://www.imdb.com/search/keyword/?keywords=anime&ref_=kw_nxt&mode=detail&page=1&sort=moviemeter,asc"):
         """
         __init__ to initialise all the attributes needed.
 
-        Args:
+        Parameters:
+            engine: creates a connection to the RDS server.
             driver: sets up the driver to control chrome for selenium.
             title,year,link,genre,rating,id,uuid: creates empty lists to be used later.
             page: sets starting page number(needed for loading new pages in next_page function below)
         """
+
         self.engine = create_engine(f"{DATABASE_TYPE}+{DBAPI}://{USER}:{PASSWORD}@{ENDPOINT}:{PORT}/{DATABASE}")
         self.engine.connect()
 
@@ -52,6 +52,13 @@ class Anime_Scraper:
         self.page = 1
 
     def scrolling(self):
+        """
+        This function scrolls through the webpage until it reaches the bottom of the page, this is done in order to load all image on the page
+        
+        Parameters:
+            i: i is used as an iterator to scroll 16 times, that is the number needed to reach the bottom of the page.
+        """
+
         print('Scrolling to load images')
         for i in range(16):
             locate = self.driver.find_element(By.XPATH, '//*[@id="styleguide-v2"]')
@@ -59,18 +66,19 @@ class Anime_Scraper:
             time.sleep(1)
 
     def next_page(self):
-        
         """
         This function uses selenium to go to the next page on the browser so get_titles can continue to collect more data.
 
-        Args:
+        Parameters:
             nextpage: uses selenium to locate the 'next' button via XPATH.
             nextpage.click: clicks the previously located button with selenium.
 
         Returns:
             Next page is displayed on the browser
         """
+
         print(f'Going to page: {int(self.page)+1}')
+
         if self.page == 1:
             self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a')
             self.nextpage.click()
@@ -83,6 +91,18 @@ class Anime_Scraper:
         time.sleep(5)
 
     def local_img_save(self):
+        """
+        This function downloads the images from self.img_link and saves them locally
+        
+        Parameters:
+            opener: accesses urllib in order to prepare for downloading.
+            img_num: counter to keep self.title at the same iteration as self.img_links.
+            links: iterates through self.img_links.
+
+        Returns:
+            Saves all images in the list to raw_data/images as .jpg files.
+        """
+
         print('Saving images to pc')
         opener=urllib.request.build_opener()
         opener.addheaders=[('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36')]
@@ -99,21 +119,18 @@ class Anime_Scraper:
     
 
     def get_data(self, pages):
-
         """
         This function gathers all wanted data by using try/except clauses for each arg.
 
         Args:
-            uuid: global unique ID 
-            title: title of the anime
-            year: release date of the anime
-            link: link to animes page
-            genre: genre of the anime
-            rating: rating of the anime
-            id: ID derived from the link of the anime page
+            df: gets a data frame from RDS server.
+            amount: sets up the webdriver and locates the requried xpath.
+            titles: iterator for going through the amount list.
+            id: checks if uuid exists for current data in the dataframe.
+
 
         Returns:
-            Try clause appends the wanted data, if available, to the empty lists in the __init__ method. Otherwise the except clause appends a value of NAN from numpy.
+            Appends all data gatherd to the lists created in the __init__ method.
 
         """    
         print(f'Gathering data on page: {self.page}')
@@ -126,9 +143,10 @@ class Anime_Scraper:
 
         for titles in range(len(amount)):
 
-            if id in list(df['id']):
-                continue
             self.uuid.append(str(uuid.uuid4()))
+            if id in list(df['uuid']):
+                continue
+
             item = self.driver.find_elements(By.XPATH, '//div[@class="lister-list"]/div')[titles]
             info = (item.text).split('\n')
             temp_title = info[0].split('(')[0].strip() 
@@ -170,9 +188,8 @@ class Anime_Scraper:
             self.driver.quit()
             self.create_df(df)
 
-
+    #continue here
     def create_df(self, df):
-
         """
         This function creates a dataframe, using pandas, and stores the data gathered in the get_data function as a .json and .csv file.
 
@@ -183,6 +200,7 @@ class Anime_Scraper:
         Returns:
             all gathered data is stored in a file on your local machine
         """
+
         print('Creating the dataframe to store all data')
         temp_anime_df = pd.DataFrame({'Title':self.title, 'Year':self.year, 'Link':self.link, 'Genres':self.genre, 'Rating':self.rating, 'ID':self.id, 'UUID':self.uuid, 'Image Links':self.img_link, })
         temp_anime_df.index +=1
