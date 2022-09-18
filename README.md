@@ -3,7 +3,7 @@
 This is the web scraper project that employs the scraper on the IMDB website to gather information on top trending anime.
 The idea is to collect all the information for easy comparison and store the data scalably on the cloud.
 
-The project uses Python, Selenium, Chromedriver, AWS S3, AWS EC2
+The project uses Python, Selenium, Chromedriver, AWS S3, AWS EC2 and AWS RDS
  to perform the above
 
 ## Table of Contents
@@ -22,6 +22,7 @@ The project uses Python, Selenium, Chromedriver, AWS S3, AWS EC2
 - Chromedriver: latest
 - Chrome: latest
 - AWS S3
+- AWS RDS
 - Docker set up on the EC2 instance
 - Prometheus
 - Grafana Dashboard
@@ -53,38 +54,59 @@ The required libraries are:
 - numpy
 - os
 - pandas
+- psycopg2
 - requests
 - selenium
 - time
 - urllib3
 - uuid
+- sqlalchemy
 
 
 Required additional modules:
 - import config: xpath constants
 - the aws access and secret keys are input as env variables
+- RDS engine variables
 
 
 ## Usage
-The code is run in 5 steps; running the scraper, quitting the scraper, creating the data frame(df), uploading df to aws and saving images (either locally or on aws)
+The code is run in 5 steps; running the scraper, gathering the data, creating the data frame(df), uploading df to aws and saving images (either locally or on aws)
 
 1. Running the scraper: 
 - This code asks the user how many pages to scrape, then proceeds to launch the webdriver in headless mode, scroll through the first page (in order to load all images), gather the data and finally go to the next page. This process is repeted unil the desired number of pages has been scraped.
 ```
-    def run_scraper(self):
-        amount = input('How many pages do you wanna scrape: ')
-        for i in range(int(amount)):
+def run_scraper(self):
+
+    pages = input('How many pages do you wanna scrape: ')
+
+        for i in range(int(pages)):
             self.scrolling()
-            self.get_data()    
-            self.next_page()
+            self.get_data(pages)    
+
+        self.save_location()
 ```
 
-2. Quitting the scraper:
-- After the previous function is done running, this function will quit the webdriver and kill all related processes. 
+2. Gathering the data.
+- After the previous function is done running, this function start scraping for the data. (partial code shown below)
 
 ```
-    def quit_scraper(self):
-        self.driver.quit()
+        for titles in range(len(amount)):
+
+            self.uuid.append(str(uuid.uuid4()))
+            if id in list(df['uuid']):
+                continue
+
+            item = self.driver.find_elements(By.XPATH, '//div[@class="lister-list"]/div')[titles]
+            info = (item.text).split('\n')
+            temp_title = info[0].split('(')[0].strip() 
+            temp_year = info[0].split('(')[1].replace(')', '') 
+            temp_genre = info[1].split('|')[-1].strip() 
+
+            temp_check = info[1].split('|')
+            if len(temp_check) == 3:
+                temp_rating = temp_check[0]
+            else:
+                temp_rating = np.NAN
 ```
 
 3. Creating the df:
@@ -95,9 +117,9 @@ The code is run in 5 steps; running the scraper, quitting the scraper, creating 
         print('Creating the dataframe to store all data')
         anime_df = pd.DataFrame({'Title':self.title, 'Year':self.year, 'Link':self.link, 'Genres':self.genre, 'Rating':self.rating, 'ID':self.id, 'UUID':self.uuid, 'Image Links':self.img_link, 'Image Names':self.img_name})
         anime_df.index +=1
-        #print(anime_df)
+        anime_df = pd.concat([df,temp_anime_df],ignore_index=True)
         anime_df.to_json(r'raw_data/data.json')
-        #anime_df.to_csv('raw_data\data.csv')
+        self.data_to_aws(anime_df)
 ```
 
 4. Upload to AWS:
@@ -107,6 +129,7 @@ The code is run in 5 steps; running the scraper, quitting the scraper, creating 
         print('Uploading dataframe to AWS')
         s3= boto3.client('s3')
         s3.upload_file('raw_data/data.json', 'anime-cloud', 'Raw-Data')
+        anime_df.to_sql('animescraper',self.engine, if_exists="replace")
 ```
 
 5. Save location:
