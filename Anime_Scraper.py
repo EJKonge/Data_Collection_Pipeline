@@ -23,6 +23,7 @@ class Anime_Scraper:
 
         Parameters:
             engine: creates a connection to the RDS server.
+            options: configures opening settings for the webdriver.
             driver: sets up the driver to control chrome for selenium.
             title,year,link,genre,rating,id,uuid: creates empty lists to be used later.
             page: sets starting page number(needed for loading new pages in next_page function below)
@@ -49,6 +50,7 @@ class Anime_Scraper:
         self.id= []
         self.uuid= []
         self.img_link= []
+
         self.page = 1
 
     def scrolling(self):
@@ -88,6 +90,7 @@ class Anime_Scraper:
             self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a[2]')
             self.nextpage.click()
             self.page +=1
+
         time.sleep(5)
 
     def local_img_save(self):
@@ -104,33 +107,61 @@ class Anime_Scraper:
         """
 
         print('Saving images to pc')
+
         opener=urllib.request.build_opener()
         opener.addheaders=[('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36')]
         urllib.request.install_opener(opener)
+
         img_num=0
+
         for links in self.img_link:
+
             if pd.isnull(links) == False:
                 filename = f"raw_data/images/{self.title[img_num]}.jpg"
                 image_url = links
                 urllib.request.urlretrieve(image_url, filename)
+
             else:
                 print(f'No image found for {self.title[img_num]}')
+                
             img_num+=1 
-    
+
+    def save_location(self):
+        """
+        This function decides wether to save images locally or locally and in the cloud.
+
+        Parameters:
+            location: User input to determine save location.
+
+        Returns:
+            Images are saved where the user wants them.
+        """
+
+        location = input('Save Images locally (pc) or local+cloud (both)? Please type “pc” or “both” to make your choice: ').lower()
+        
+        if location == 'pc':
+            print('You chose PC')
+            self.local_img_save()
+
+        else:
+            print('You chose both')
+            self.local_img_save()
+            self.img_to_aws()
 
     def get_data(self, pages):
         """
         This function gathers all wanted data by using try/except clauses for each arg.
 
-        Args:
+        Parameters:
             df: gets a data frame from RDS server.
             amount: sets up the webdriver and locates the requried xpath.
             titles: iterator for going through the amount list.
             id: checks if uuid exists for current data in the dataframe.
+            pages: Integer value gotten from user to determine the number of pages needed to be scraped.
 
 
         Returns:
-            Appends all data gatherd to the lists created in the __init__ method.
+            Appends all data gathered to the lists created in the __init__ method.
 
         """    
         print(f'Gathering data on page: {self.page}')
@@ -188,58 +219,85 @@ class Anime_Scraper:
             self.driver.quit()
             self.create_df(df)
 
-    #continue here
+    
     def create_df(self, df):
         """
-        This function creates a dataframe, using pandas, and stores the data gathered in the get_data function as a .json and .csv file.
+        This function creates a dataframe by concatenating data from dataframe taken from RDS and the newly gathered data. 
 
-        Args:
-            anime_df:creates the dataframe
-            anime_df.index: changes the index to start from 1 instead of 0
+        Parameters:
+            df: data frame from the RDS server is given as a parameter from the get_data function.
 
         Returns:
-            all gathered data is stored in a file on your local machine
+            all gathered data is stored in a file on your local machine, and data_to_aws function is called.
         """
 
         print('Creating the dataframe to store all data')
+
         temp_anime_df = pd.DataFrame({'Title':self.title, 'Year':self.year, 'Link':self.link, 'Genres':self.genre, 'Rating':self.rating, 'ID':self.id, 'UUID':self.uuid, 'Image Links':self.img_link, })
         temp_anime_df.index +=1
+
         anime_df = pd.concat([df,temp_anime_df],ignore_index=True)
+
         anime_df.to_json(r'raw_data/data.json')
 
         self.data_to_aws(anime_df)
 
     
     def data_to_aws(self, anime_df):
+        """
+        This function uploads the data frame from create_df() and uploads it to AWS.
+        
+        Parameters: 
+            anime_df: data frame created in the create_df function.
+
+        Returns: 
+            Uploads the data frame as a .json file to s3 and updates the dataframe on RDS.
+        """
+
         print('Uploading dataframe to AWS')
+
         s3= boto3.client('s3')
         s3.upload_file('raw_data/data.json', 'anime-cloud', 'Raw-Data')
         anime_df.to_sql('animescraper',self.engine, if_exists="replace")
 
     def img_to_aws():
+        """
+        This function uploads the images to s3 bucket.
+
+        Parameters: 
+            path: locates the directory where the images are stored.
+            names: Iterates through all the images and is used to get image name.
+
+        Returns:
+            All images are uploaded to the s3 bucket and duplicates with the same name are replaced.
+        """
+
         print('Uploading images to AWS')
+
         path ='raw_data/images'
         os.chdir(path)
+
         for names in os.listdir():
             s3= boto3.client('s3')
             s3.upload_file(names, 'anime-cloud', 'Images/' + str(names) )
 
-
-    def save_location(self):
-        location = input('Save Images locally (pc) or local+cloud (both)? Please type “pc” or “both” to make your choice: ').lower()
-        if location == 'pc':
-            print('You chose PC')
-            self.local_img_save()
-        else:
-            print('You chose both')
-            self.local_img_save()
-            self.img_to_aws()
-
     def run_scraper(self):
+        """
+        This is the logic of the scraper which runs the scraper as required.
+
+        Parameters:
+            pages: Integer value from user, to determine the number of pages that needs to be scraped.
+
+        Returns:
+            Runs the scraper until all the data/images are gathered and saved to desired loctaion.
+        """
+
         pages = input('How many pages do you wanna scrape: ')
+
         for i in range(int(pages)):
             self.scrolling()
             self.get_data(pages)    
+
         self.save_location()
         
                 
