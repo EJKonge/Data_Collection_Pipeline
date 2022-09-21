@@ -15,23 +15,21 @@ from sqlalchemy import create_engine
 
 
 class Anime_Scraper:
-#Creating a class containing a webscraper to gather Anime data from IMDB.com
+    '''
+    Creating a class containing a webscraper to gather Anime data from IMDB.com.
+    Information about most popular anime is collected and stored in a pandas dataframe, which is then uploaded to AWS.
+    Data collected for each anime;
+        title, year ,link, genre, rating, id, uuid, image link.
+
+    '''
     
     def __init__(self,  url : str = "https://www.imdb.com/search/keyword/?keywords=anime&ref_=kw_nxt&mode=detail&page=1&sort=moviemeter,asc"):
         """
         __init__ to initialise all the attributes needed.
 
         Parameters:
-            engine: creates a connection to the RDS server.
-            options: configures opening settings for the webdriver.
-            driver: sets up the driver to control chrome for selenium.
-            title,year,link,genre,rating,id,uuid: creates empty lists to be used later.
-            page: sets starting page number(needed for loading new pages in next_page function below)
+            url: URL for the website that will be used in the class.
         """
-
-        self.engine = create_engine(f"{DATABASE_TYPE}+{DBAPI}://{USER}:{PASSWORD}@{ENDPOINT}:{PORT}/{DATABASE}")
-        self.engine.connect()
-
         options = Options()
 
         options.add_argument("--headless")
@@ -53,57 +51,49 @@ class Anime_Scraper:
 
         self.page = 1
 
+    def __RDS_engine(self):
+        """
+        Creates a connection to the RDS server an AWS.
+        """
+        self.engine = create_engine(f"{DATABASE_TYPE}+{DBAPI}://{USER}:{PASSWORD}@{ENDPOINT}:{PORT}/{DATABASE}")
+        self.engine.connect()
+
     def scrolling(self):
         """
-        This function scrolls through the webpage until it reaches the bottom of the page, this is done in order to load all image on the page
-        
-        Parameters:
-            i: i is used as an iterator to scroll 16 times, that is the number needed to reach the bottom of the page.
+        This function scrolls through the webpage until it reaches the bottom of the page, this is done in order to load all image on the page.
         """
 
         print('Scrolling to load images')
-        for i in range(16):
+        for scrolling_iterator in range(16):
             locate = self.driver.find_element(By.XPATH, '//*[@id="styleguide-v2"]')
             locate.send_keys(Keys.PAGE_DOWN)
             time.sleep(1)
 
     def next_page(self):
         """
-        This function uses selenium to go to the next page on the browser so get_titles can continue to collect more data.
-
-        Parameters:
-            nextpage: uses selenium to locate the 'next' button via XPATH.
-            nextpage.click: clicks the previously located button with selenium.
-
-        Returns:
-            Next page is displayed on the browser
+        This function uses selenium to go to the next page on the browser so get_data can continue to collect more data. 
+        Try/except statement is used because the xpath is different on page 1 compared to every other page.
         """
 
         print(f'Going to page: {int(self.page)+1}')
 
-        if self.page == 1:
-            self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a')
-            self.nextpage.click()
-            self.page +=1
+        try:
+            self.nextpage = self.driver.find_element(By.XPATH, '//div[@class="desc"]/a[2]')
+        except:
+            self.nextpage = self.driver.find_element(By.XPATH, '//div[@class="desc"]/a[1]')
 
-        else:
-            self.nextpage = self.driver.find_element(By.XPATH, '//*[@id="main"]/div/div[2]/div[1]/div/div[2]/a[2]')
-            self.nextpage.click()
-            self.page +=1
+        self.nextpage.click()
+        self.page +=1
 
         time.sleep(5)
 
-    def local_img_save(self):
+    def __local_img_save(self):
         """
-        This function downloads the images from self.img_link and saves them locally
-        
-        Parameters:
-            opener: accesses urllib in order to prepare for downloading.
-            img_num: counter to keep self.title at the same iteration as self.img_links.
-            links: iterates through self.img_links.
+        This function iterates through self.img_links links and uses urllib library to downloads and save the images locally.
+        opener is made to create an OpenDirectory instance needed to access the websites in the urls.
 
         Returns:
-            Saves all images in the list to raw_data/images as .jpg files.
+            Saves all images in the folder raw_data/images as .jpg files.
         """
 
         print('Saving images to pc')
@@ -126,109 +116,94 @@ class Anime_Scraper:
                 
             img_num+=1 
 
-    def save_location(self):
+    def __save_location(self):
         """
         This function decides wether to save images locally or locally and in the cloud.
-
-        Parameters:
-            location: User input to determine save location.
-
-        Returns:
-            Images are saved where the user wants them.
         """
 
         location = input('Save Images locally (pc) or local+cloud (both)? Please type “pc” or “both” to make your choice: ').lower()
         
         if location == 'pc':
             print('You chose PC')
-            self.local_img_save()
+            self.__local_img_save()
 
         else:
             print('You chose both')
-            self.local_img_save()
+            self.__local_img_save()
             self.img_to_aws()
 
-    def get_data(self, pages):
+    def __get_data(self, pages):
         """
-        This function gathers all wanted data by using try/except clauses for each arg.
+        This function checks if the data to be scraped already exists in the RDS server. If not, it proceeds to scrape the required information.
 
         Parameters:
-            df: gets a data frame from RDS server.
-            amount: sets up the webdriver and locates the requried xpath.
-            titles: iterator for going through the amount list.
-            id: checks if uuid exists for current data in the dataframe.
             pages: Integer value gotten from user to determine the number of pages needed to be scraped.
-
-
-        Returns:
-            Appends all data gathered to the lists created in the __init__ method.
-
         """    
         print(f'Gathering data on page: {self.page}')
 
-        
+        #reads dataframe stored in RDS
         df = pd.read_sql_table('animescraper', self.engine)
-        df=df["title", "link", "genre", "rating", "id", "uuid", "img_link"]
+        df=df["title", "year" ,"link", "genre", "rating", "id", "uuid", "img_link"]
 
-        amount = self.driver.find_elements(By.XPATH, '//div[@class="lister-list"]/div')
+        Xpath_list = self.driver.find_elements(By.XPATH, '//div[@class="lister-list"]/div')
 
-        for titles in range(len(amount)):
+        for titles in range(len(Xpath_list)):
 
-            self.uuid.append(str(uuid.uuid4()))
-            if id in list(df['uuid']):
-                continue
-
-            item = self.driver.find_elements(By.XPATH, '//div[@class="lister-list"]/div')[titles]
+            item = self.driver.find_elements(By.XPATH, '//div[@class="lister-list"]/div')[titles+1]
             info = (item.text).split('\n')
-            temp_title = info[0].split('(')[0].strip() 
-            temp_year = info[0].split('(')[1].replace(')', '') 
-            temp_genre = info[1].split('|')[-1].strip() 
-
-            temp_check = info[1].split('|')
-            if len(temp_check) == 3:
-                temp_rating = temp_check[0]
-            else:
-                temp_rating = np.NAN
 
             try:    
-                temp_link = item.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{titles+1}]/div[2]/h3/a').get_attribute('href')
+                temp_link = item.find_element(By.XPATH, f'//div[@class="removable-wrapper"]/a').get_attribute('href')
                 temp_id = temp_link[29:36]
             except:
                 temp_link = np.NAN
                 temp_id = np.NAN
 
-            try:
-                temp_img= item.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{titles+1}]/div[1]/div[2]/a/img').get_attribute('src')
-            except:
+            #checks if data already exists in the RDS server
+            if temp_id not in list(df['id']) and temp_id != np.NAN:
+
+                temp_title = info[0].split('(')[0].strip() 
+                temp_year = info[0].split('(')[1].replace(')', '') 
+                temp_genre = info[1].split('|')[-1].strip() 
+
+                #checks if ranking is listed on the page or not
+                temp_check = info[1].split('|')
+                if len(temp_check) == 3:
+                    temp_rating = temp_check[0]
+                else:
+                    temp_rating = np.NAN
+
                 try:
-                    temp_img= item.find_element(By.XPATH, f'//*[@id="main"]/div/div[2]/div[3]/div[{titles+1}]/div[1]/a/img').get_attribute('src')
+                    temp_img= item.find_element(By.XPATH, f'//div[@class="removable-wrapper"]/a/img').get_attribute('src')
                 except:
                     temp_img=np.NAN
 
-            self.title.append(temp_title)
-            self.year.append(temp_year)
-            self.link.append(temp_link)
-            self.genre.append(temp_genre)
-            self.rating.append(temp_rating)
-            self.id.append(temp_id)
-            self.img_link.append(temp_img)
+                self.title.append(temp_title)
+                self.year.append(temp_year)
+                self.link.append(temp_link)
+                self.genre.append(temp_genre)
+                self.rating.append(temp_rating)
+                self.id.append(temp_id)
+                self.uuid.append(str(uuid.uuid4()))
+                self.img_link.append(temp_img)
 
+            else:
+                continue
+
+        #checks if desired number of pages has been scraped. If yes, loop breaks and create_df function is called.
         if pages != self.page:
             self.next_page()
         else:
             self.driver.quit()
-            self.create_df(df)
+            self.__create_df(df)
 
     
-    def create_df(self, df):
+    def __create_df(self, df):
         """
         This function creates a dataframe by concatenating data from dataframe taken from RDS and the newly gathered data. 
 
         Parameters:
             df: data frame from the RDS server is given as a parameter from the get_data function.
-
-        Returns:
-            all gathered data is stored in a file on your local machine, and data_to_aws function is called.
         """
 
         print('Creating the dataframe to store all data')
@@ -240,18 +215,15 @@ class Anime_Scraper:
 
         anime_df.to_json(r'raw_data/data.json')
 
-        self.data_to_aws(anime_df)
+        self.__data_to_aws(anime_df)
 
     
-    def data_to_aws(self, anime_df):
+    def __data_to_aws(self, anime_df):
         """
-        This function uploads the data frame from create_df() and uploads it to AWS.
+        This function uploads the data frame from create_df() to AWS.
         
         Parameters: 
-            anime_df: data frame created in the create_df function.
-
-        Returns: 
-            Uploads the data frame as a .json file to s3 and updates the dataframe on RDS.
+            anime_df: data frame created in the create_df() function.
         """
 
         print('Uploading dataframe to AWS')
@@ -260,16 +232,10 @@ class Anime_Scraper:
         s3.upload_file('raw_data/data.json', 'anime-cloud', 'Raw-Data')
         anime_df.to_sql('animescraper',self.engine, if_exists="replace")
 
+    @staticmethod
     def img_to_aws():
         """
         This function uploads the images to s3 bucket.
-
-        Parameters: 
-            path: locates the directory where the images are stored.
-            names: Iterates through all the images and is used to get image name.
-
-        Returns:
-            All images are uploaded to the s3 bucket and duplicates with the same name are replaced.
         """
 
         print('Uploading images to AWS')
@@ -284,21 +250,17 @@ class Anime_Scraper:
     def run_scraper(self):
         """
         This is the logic of the scraper which runs the scraper as required.
-
-        Parameters:
-            pages: Integer value from user, to determine the number of pages that needs to be scraped.
-
-        Returns:
-            Runs the scraper until all the data/images are gathered and saved to desired loctaion.
         """
+
+        self.__RDS_engine()
 
         pages = input('How many pages do you wanna scrape: ')
 
-        for i in range(int(pages)):
+        for amount in range(int(pages)):
             self.scrolling()
-            self.get_data(pages)    
+            self.__get_data(pages)    
 
-        self.save_location()
+        self.__save_location()
         
                 
 if __name__ == '__main__':
